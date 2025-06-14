@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <chrono>
+#include <thread>
 
 #include <GL/glew.h> 
 #include <GLFW/glfw3.h>
@@ -11,8 +13,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <chrono>
-#include <thread>
 
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -46,53 +46,47 @@ unsigned int indicesTexture[] = {
 unsigned int textureStride = (2 + 2) * sizeof(float);
 
 
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.5f);     // Poèetna pozicija kamere (unutar kocke)
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.5f);     // Pocetna pozicija kamere (unutar kocke)
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f); // Pravac u kome kamera gleda (prema negativnoj Z osi)
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);       // Gornji vektor kamere
-float yaw = -90.0f;   // Horizontalna rotacija kamere (poèetno gleda po negativnoj Z osi)
+float yaw = -90.0f;   // Horizontalna rotacija kamere (pocetno gleda po negativnoj Z osi)
 float pitch = 0.0f;   // Vertikalna rotacija kamere
 
 float fov = 75.0f;  // Field of View za zumiranje
 
 
 float cubeSize = 4.0f;
-float h = cubeSize / 2.0f; // Pola velièine
+float h = cubeSize / 2.0f; // Pola velicine
 
-// Nova globalna promenljiva za stanje vrata
-bool doorIsOpen = false; // Da li su vrata trenutno otvorena?
+//Globalne promenljive za stanje vrata
+bool doorIsOpen = false;
 float doorOpenProgress = 0.0f; // 0.0 = zatvorena, 1.0 = potpuno otvorena
-float doorAnimationSpeed = 1.5f; // Brzina animacije vrata (npr. 1.0 znaèi 1.0 jedinica progresa po sekundi)
+float doorAnimationSpeed = 1.5f; // Brzina animacije vrata
 bool spacePressedLastFrame = false; // Za detekciju samo jednog pritiska Space tastera
 
 // Definisanje promenljivih za VRATA
 float doorWidth = 1.4f;
 float doorHeight = 2.5f;
-float doorXOffset = 0.0f; // Centrirano po X osi
+float doorXOffset = 0.0f; // Centrirano po x osi
 float doorYBase = -h;     // Donja ivica vrata na podu
 
-float doorXOffset2 = 0.0f; // Centrirano po X osi
+float doorXOffset2 = 0.0f; // Centrirano po x osi
 float newDoorGap = 0.05f;
 
-// Definisanje promenljivih za SLIKE
+// Definisanje promenljivih za slike
 float pictureWidth = 1.0f;
 float pictureHeight = 1.5f;
 float pictureXOffset = 0.0f; // Centrirano po X osi (za sliku na zadnjem zidu)
 float pictureYBase = -h + 0.8f; // Donja ivica slike na 0.8m od poda
 
-// Za slike na boènim zidovima, Z-offset æe biti 0.0f za centriranje
+// Za slike na bocnim zidovima, Z-offset ce biti 0.0f za centriranje
 float picture2ZOffset = 0.0f; // Za sliku 2 na levom zidu
 float picture3ZOffset = 0.0f; // Za sliku 3 na desnom zidu
 float doorThickness = 0.02f;
 
 
-float outsideDoorXOffset = 0.0f; // Centrirana po X osi
-float outsideDoorYBase = -h + 0.1f; // Malo iznad spoljašnjeg "poda"
-float outsideDoorZOffset = h + 0.1f + doorThickness; // Iza prednjeg zida spolja
-float outsideDoorThickness = doorThickness; // Neka debljina
-
-
-float outsidePlaneSize = h * 10.0f; // Neka bude 10 puta veæa od galerije, da izgleda beskonaèno
-glm::vec4 outsidePlaneColor = glm::vec4(0.5f, 0.7f, 0.5f, 1.0f); // Neka bude neka zelena/siva boja za "teren"
+float outsidePlaneSize = h * 10.0f; //10 puta veæa od galerije
+glm::vec4 outsidePlaneColor = glm::vec4(0.5f, 0.7f, 0.5f, 1.0f);
 
 
 int main(void)
@@ -136,7 +130,6 @@ int main(void)
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS); // Fragment je bliži ako ima manju dubinu
 
-    //glDisable(GL_CULL_FACE); 
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK); // Eliminiše zadnje strane
 
@@ -332,17 +325,6 @@ int main(void)
                -h, h, -h, 1.0f, 0.992f, 0.902f, 1.0f, // GLZ (unutrašnji: 4 GLZ)
                -h, -h, -h, 1.0f, 0.992f, 0.902f, 1.0f,  // DLZ (unutrašnji: 3 DLZ)
 
-            //// TROUGAO 1 (gore levo - gore desno - dole desno)
-            //doorXOffset - doorWidth / 2.0f, doorYBase + doorHeight, -h - 0.1f, 0.0f, 0.0f, 1.0f, 1.0f, // Gornji levi
-            //doorXOffset + doorWidth / 2.0f, doorYBase + doorHeight, -h - 0.1f, 0.0f, 0.0f, 1.0f, 1.0f, // Gornji desni
-            //doorXOffset + doorWidth / 2.0f, doorYBase, -h - 0.1f, 0.0f, 0.0f, 1.0f, 1.0f, // Donji desni
-
-            //// TROUGAO 2 (gore levo - dole desno - dole levo)
-            //doorXOffset - doorWidth / 2.0f, doorYBase + doorHeight, -h - 0.1f, 0.0f, 0.0f, 1.0f, 1.0f, // Gornji levi
-            //doorXOffset + doorWidth / 2.0f, doorYBase, -h - 0.1f, 0.0f, 0.0f, 1.0f, 1.0f, // Donji desni
-            //doorXOffset - doorWidth / 2.0f, doorYBase, -h - 0.1f, 0.0f, 0.0f, 1.0f, 1.0f  // Donji levi
-
-
     };
 
 
@@ -440,7 +422,6 @@ int main(void)
     // ++++++++++++++++++++++++++++++++++++++++++++++++++++++ RENDER LOOP - PETLJA ZA CRTANJE +++++++++++++++++++++++++++++++++++++++++++++++++
     glUseProgram(galleryShader); //Slanje default vrijednosti uniformi
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model)); //(Adresa matrice, broj matrica koje saljemo, da li treba da se transponuju, pokazivac do matrica)
-    //glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
     glBindVertexArray(VAO);
 
@@ -483,21 +464,20 @@ int main(void)
             yaw += cameraRotationSpeed;
         }
 
-        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) { // Odzumira (smanjuje FOV, uži ugao)
-            fov -= zoomFovSpeed; // Smanjujemo FOV za "zoom in" efekt
-            if (fov < 1.0f) {    // Minimalni FOV (najuži ugao, "zumirano")
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+            fov -= zoomFovSpeed;
+            if (fov < 1.0f) {
                 fov = 1.0f;
             }
         }
 
-        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) { // Zumira (poveæava FOV, širi ugao)
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
             fov += zoomFovSpeed;
             if (fov > 90.0f) {
                 fov = 90.0f;
             }
         }
 
-        // Ažuriraj cameraFront nakon promene yaw-a (bitno pre kolizije)
         updateCameraVectors();
 
         // Logika za otvaranje/zatvaranje vrata
